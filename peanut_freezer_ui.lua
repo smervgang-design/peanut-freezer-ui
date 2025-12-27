@@ -1,10 +1,13 @@
 -- Peanut Freezer UI (Final Inner Padding Added)
-
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+local originalTransparency = {}
+
 
 -- Get currently equipped tool
 local function getEquippedTool()
@@ -24,6 +27,9 @@ end
 local starterLagEnabled = false
 local mainLagEnabled = false
 local rapidFireEnabled = false
+local guideLine
+local guideConnection
+
 
 
 
@@ -52,6 +58,158 @@ local function setMainLag(enabled)
 		-- 🔧 cleanup main lag here
 	end
 end
+
+local FADE_AMOUNT = 0.25 -- tweak: 0.15 subtle | 0.25 balanced | 0.35 strong
+local originalTransparency = {}
+
+local function isGroundFloor(part)
+	-- Floors are wide and thin
+	return part.Size.Y <= 2
+		and part.Size.X > 10
+		and part.Size.Z > 10
+end
+
+local function setWorldFaint(enabled)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			-- ❌ skip player & tools
+			if player.Character and obj:IsDescendantOf(player.Character) then continue end
+			if obj:IsDescendantOf(player.Backpack) then continue end
+
+			-- ❌ skip ground floor
+			if isGroundFloor(obj) then continue end
+
+			if enabled then
+				if originalTransparency[obj] == nil then
+					originalTransparency[obj] = obj.Transparency
+				end
+
+				obj.Transparency = math.clamp(
+					originalTransparency[obj] + FADE_AMOUNT,
+					0,
+					0.7
+				)
+			else
+				if originalTransparency[obj] ~= nil then
+					obj.Transparency = originalTransparency[obj]
+				end
+			end
+		end
+	end
+
+	if not enabled then
+		originalTransparency = {}
+	end
+end
+
+local function setGuideline(enabled)
+	-- TURN OFF
+	if not enabled then
+		if guideConnection then
+			guideConnection:Disconnect()
+			guideConnection = nil
+		end
+		if guideLine then
+			guideLine:Destroy()
+			guideLine = nil
+		end
+		return
+	end
+
+	-- TURN ON
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	guideLine = Instance.new("Part")
+	guideLine.Anchored = true
+	guideLine.CanCollide = false
+	guideLine.Material = Enum.Material.Neon
+	guideLine.Color = Color3.fromRGB(255, 80, 80)
+	guideLine.Size = Vector3.new(0.15, 0.15, 1)
+	guideLine.Parent = workspace
+
+	guideConnection = RunService.RenderStepped:Connect(function()
+		print("Guideline running")
+
+		local folder = workspace:FindFirstChild("Brainrots")
+		if not folder then return end
+
+		local closestPart
+		local closestDist = math.huge
+
+		for _, obj in ipairs(folder:GetChildren()) do
+			local targetPart =
+				obj:IsA("Model") and obj.PrimaryPart
+				or (obj:IsA("BasePart") and obj)
+
+			if targetPart then
+				local dist = (hrp.Position - targetPart.Position).Magnitude
+				if dist < closestDist then
+					closestDist = dist
+					closestPart = targetPart
+				end
+			end
+		end
+
+		if closestPart then
+			local midpoint = (hrp.Position + closestPart.Position) / 2
+			guideLine.Size = Vector3.new(0.15, 0.15, closestDist)
+			guideLine.CFrame = CFrame.lookAt(midpoint, closestPart.Position)
+		end
+	end)
+end
+
+
+
+
+
+local RunService = game:GetService("RunService")
+local guideLine
+local guideConnection
+
+local function showBrainrotPath(enabled)
+	if not enabled then
+		if guideConnection then guideConnection:Disconnect() end
+		if guideLine then guideLine:Destroy() end
+		return
+	end
+
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	guideLine = Instance.new("Part")
+	guideLine.Anchored = true
+	guideLine.CanCollide = false
+	guideLine.Material = Enum.Material.Neon
+	guideLine.Color = Color3.fromRGB(255, 50, 50)
+	guideLine.Parent = workspace
+
+	guideConnection = RunService.RenderStepped:Connect(function()
+		local brainrots = workspace:FindFirstChild("Brainrots")
+		if not brainrots then return end
+
+		local closest
+		local closestDist = math.huge
+
+		for _, obj in ipairs(brainrots:GetChildren()) do
+			local pos = obj:IsA("Model") and obj.PrimaryPart or obj
+			if pos then
+				local dist = (hrp.Position - pos.Position).Magnitude
+				if dist < closestDist then
+					closestDist = dist
+					closest = pos
+				end
+			end
+		end
+
+		if closest then
+			local midpoint = (hrp.Position + closest.Position) / 2
+			guideLine.Size = Vector3.new(0.15, 0.15, closestDist)
+			guideLine.CFrame = CFrame.lookAt(midpoint, closest.Position)
+		end
+	end)
+end
+
 
 
 -- ScreenGui
@@ -192,6 +350,12 @@ local starterActivateBtn =
 starterActivateBtn.MouseButton1Click:Connect(function()
 	rapidFireEnabled = not rapidFireEnabled
 	setStarterLag(rapidFireEnabled)
+	setWorldFaint(rapidFireEnabled)
+	showBrainrotPath(rapidFireEnabled)
+	setGuideline(true)
+
+
+
 
 	local tool = getEquippedTool()
 	if tool then
@@ -203,9 +367,13 @@ starterActivateBtn.MouseButton1Click:Connect(function()
 	end
 
 	if rapidFireEnabled then
+		setGuideline(true)
+		setWorldFaint(true)
 		starterActivateBtn.Text = "⚡ ACTIVE"
 		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(60,160,110)
 	else
+		setGuideline(false)
+		setWorldFaint(false)
 		starterActivateBtn.Text = "⚡ ACTIVATE"
 		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
 	end
@@ -279,6 +447,11 @@ stopAllBtn.MouseButton1Click:Connect(function()
 	starterLagEnabled = false
 	mainLagEnabled = false
 	rapidFireEnabled = false
+	setWorldFaint(false)
+	showBrainrotPath(false)
+	setGuideline(false)
+
+
 
 	-- 🔥 THIS IS THE PART YOU WERE ASKING ABOUT
 	local tool = getEquippedTool()
