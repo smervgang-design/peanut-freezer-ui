@@ -29,6 +29,8 @@ local mainLagEnabled = false
 local rapidFireEnabled = false
 local guideLine
 local guideConnection
+local objectLabels = {}
+
 
 
 
@@ -69,7 +71,45 @@ local function isGroundFloor(part)
 		and part.Size.Z > 10
 end
 
+local function createObjectLabel(part)
+	if objectLabels[part] then return end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromScale(4, 1)
+	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Adornee = part
+	billboard.Parent = part
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+	-- 🔧 Choose ONE of these:
+
+	-- OPTION A: Object name (recommended)
+	text.Text = part.Name
+
+	-- OPTION B: Object name + debug id
+	-- text.Text = part.Name .. "\n" .. part:GetDebugId()
+
+	text.Parent = billboard
+
+	objectLabels[part] = billboard
+end
+
+local function clearObjectLabels()
+	for part, gui in pairs(objectLabels) do
+		if gui then gui:Destroy() end
+	end
+	objectLabels = {}
+end
+
 local function setWorldFaint(enabled)
+
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") then
 			-- ❌ skip player & tools
@@ -89,6 +129,10 @@ local function setWorldFaint(enabled)
 					0,
 					0.7
 				)
+
+				-- ✅ ADD THIS LINE (SHOW LABEL)
+				createObjectLabel(obj)
+
 			else
 				if originalTransparency[obj] ~= nil then
 					obj.Transparency = originalTransparency[obj]
@@ -99,8 +143,12 @@ local function setWorldFaint(enabled)
 
 	if not enabled then
 		originalTransparency = {}
+
+		-- ✅ ADD THIS LINE (REMOVE LABELS)
+		clearObjectLabels()
 	end
 end
+
 
 local function setGuideline(enabled)
 	-- TURN OFF
@@ -158,6 +206,9 @@ local function setGuideline(enabled)
 		end
 	end)
 end
+
+
+
 
 
 
