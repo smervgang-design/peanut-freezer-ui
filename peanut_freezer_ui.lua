@@ -6,6 +6,54 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Get currently equipped tool
+local function getEquippedTool()
+	local character = player.Character or player.CharacterAdded:Wait()
+
+	for _, obj in ipairs(character:GetChildren()) do
+		if obj:IsA("Tool") then
+			return obj
+		end
+	end
+
+	return nil
+end
+
+
+-- State
+local starterLagEnabled = false
+local mainLagEnabled = false
+local rapidFireEnabled = false
+
+
+
+-- STARTER LAG LOGIC
+local function setStarterLag(enabled)
+	starterLagEnabled = enabled
+
+	if enabled then
+		print("Starter Lag ACTIVATED")
+		-- 🔧 put starter lag logic here
+	else
+		print("Starter Lag DEACTIVATED")
+		-- 🔧 cleanup starter lag here
+	end
+end
+
+-- MAIN LAG LOGIC
+local function setMainLag(enabled)
+	mainLagEnabled = enabled
+
+	if enabled then
+		print("Main Lag ACTIVATED")
+		-- 🔧 put main lag logic here
+	else
+		print("Main Lag DEACTIVATED")
+		-- 🔧 cleanup main lag here
+	end
+end
+
+
 -- ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "FreezerUI"
@@ -128,14 +176,42 @@ local function bigButton(parent, text, color, y)
 	b.TextColor3 = Color3.new(1,1,1)
 	b.Parent = parent
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+	return b -- ✅ THIS FIXES EVERYTHING
 end
+
 
 --------------------------------------------------
 -- STARTER LAG
 --------------------------------------------------
 sectionHeading(starter, "STARTER LAG")
 info(starter, "Power (0.01–100):", "0.05", 0.20)
-bigButton(starter, "⚡ ACTIVATE", Color3.fromRGB(80,190,130), 0.40)
+
+local starterActivateBtn =
+	bigButton(starter, "⚡ ACTIVATE", Color3.fromRGB(80,190,130), 0.40)
+
+starterActivateBtn.MouseButton1Click:Connect(function()
+	rapidFireEnabled = not rapidFireEnabled
+	setStarterLag(rapidFireEnabled)
+
+	local tool = getEquippedTool()
+	if tool then
+		if rapidFireEnabled then
+			tool:SetAttribute("FireRateMultiplier", 3) -- 3x faster
+		else
+			tool:SetAttribute("FireRateMultiplier", 1)
+		end
+	end
+
+	if rapidFireEnabled then
+		starterActivateBtn.Text = "⚡ ACTIVE"
+		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(60,160,110)
+	else
+		starterActivateBtn.Text = "⚡ ACTIVATE"
+		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
+	end
+end)
+
+
 bigButton(starter, "🚀 START + TP HIGHEST", Color3.fromRGB(140,110,220), 0.62)
 
 --------------------------------------------------
@@ -145,7 +221,23 @@ sectionHeading(mainLag, "MAIN LAG")
 info(mainLag, "Power (0.01–100):", "0.5", 0.20)
 info(mainLag, "Lag After Steal:", "ON", 0.32)
 info(mainLag, "Duration (sec):", "0.5", 0.44)
-bigButton(mainLag, "⚡ ACTIVATE", Color3.fromRGB(225,135,80), 0.64)
+
+local mainActivateBtn =
+	bigButton(mainLag, "⚡ ACTIVATE", Color3.fromRGB(225,135,80), 0.64)
+
+mainActivateBtn.MouseButton1Click:Connect(function()
+	mainLagEnabled = not mainLagEnabled
+	setMainLag(mainLagEnabled)
+
+	if mainLagEnabled then
+		mainActivateBtn.Text = "⚡ ACTIVE"
+		mainActivateBtn.BackgroundColor3 = Color3.fromRGB(190,110,70)
+	else
+		mainActivateBtn.Text = "⚡ ACTIVATE"
+		mainActivateBtn.BackgroundColor3 = Color3.fromRGB(225,135,80)
+	end
+end)
+
 
 --------------------------------------------------
 -- ACTION BUTTONS
@@ -167,11 +259,51 @@ local function actionButton(parent, text, color, x)
 	b.TextColor3 = Color3.new(1,1,1)
 	b.Parent = parent
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+	return b
 end
 
-actionButton(actions, "📍 TP TO HIGHEST", Color3.fromRGB(90,140,220), 0.03)
-actionButton(actions, "👢 Kick Self", Color3.fromRGB(90,140,220), 0.36)
-actionButton(actions, "🛑 STOP ALL", Color3.fromRGB(200,70,70), 0.69)
+local tpHighestBtn = actionButton(actions, "📍 TP TO HIGHEST", Color3.fromRGB(90,140,220), 0.03)
+local kickSelfBtn  = actionButton(actions, "👢 Kick Self", Color3.fromRGB(90,140,220), 0.36)
+local stopAllBtn = actionButton(actions, "🛑 STOP ALL", Color3.fromRGB(200,70,70), 0.69)
+
+
+stopAllBtn.MouseButton1Click:Connect(function()
+	-- turn off starter / main logic
+	if starterLagEnabled then
+		setStarterLag(false)
+	end
+	if mainLagEnabled then
+		setMainLag(false)
+	end
+
+	starterLagEnabled = false
+	mainLagEnabled = false
+	rapidFireEnabled = false
+
+	-- 🔥 THIS IS THE PART YOU WERE ASKING ABOUT
+	local tool = getEquippedTool()
+	if tool then
+		tool:SetAttribute("FireRateMultiplier", 1)
+	end
+	-- 🔥 END OF ADDED PART
+
+	-- reset button visuals
+	starterActivateBtn.Text = "⚡ ACTIVATE"
+	starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
+
+	mainActivateBtn.Text = "⚡ ACTIVATE"
+	mainActivateBtn.BackgroundColor3 = Color3.fromRGB(225,135,80)
+
+	print("ALL FEATURES STOPPED")
+end)
+
+
+
+-- Kick Self logic
+kickSelfBtn.MouseButton1Click:Connect(function()
+	player:Kick("You kicked yourself.")
+end)
+
 
 --------------------------------------------------
 -- FLOOR BUTTONS
