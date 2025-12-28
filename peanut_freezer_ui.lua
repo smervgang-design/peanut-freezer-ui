@@ -107,77 +107,77 @@ local function isGroundFloor(part)
 end
 
 local function createBrainrotLabel(brainrot)
-	if not brainrot:IsA("Model") then return end
-	if not brainrot.PrimaryPart then return end
+	local part =
+		brainrot:IsA("Model") and brainrot.PrimaryPart
+		or brainrot:IsA("BasePart") and brainrot
 
-	-- Avoid duplicates
-	if brainrot:FindFirstChild("BrainrotLabel") then
-		return
-	end
+	if not part then return end
+	if part:FindFirstChild("BrainrotLabel") then return end
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "BrainrotLabel"
-	billboard.Size = UDim2.fromScale(4, 2)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = brainrot
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "BrainrotLabel"
+	gui.Adornee = part
+	gui.Size = UDim2.fromScale(6, 2.5)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
+	gui.AlwaysOnTop = true
+	gui.Parent = part
 
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.TextScaled = true
-	text.Font = Enum.Font.GothamBold
-	text.TextStrokeTransparency = 0
-	text.TextColor3 = Color3.fromRGB(0, 255, 140)
-	text.Parent = billboard
+	local container = Instance.new("Frame")
+	container.BackgroundTransparency = 1
+	container.Size = UDim2.fromScale(1, 1)
+	container.Parent = gui
 
-	-- 🔍 FIND MONEY PER SECOND
-	local function getMoneyPerSecond()
-		-- Attribute
-		local attr = brainrot:GetAttribute("MoneyPerSecond")
-		if attr then return attr end
+	-- 🔴 Brainrot Name
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1, 0.5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBlack
+	nameLabel.TextColor3 = Color3.fromRGB(255, 60, 60)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.Text = brainrot.Name
+	nameLabel.Parent = container
 
-		-- NumberValue search
-		for _, v in ipairs(brainrot:GetDescendants()) do
-			if v:IsA("NumberValue") then
-				local n = v.Name:lower()
-				if n:find("money") or n:find("income") or n:find("rate") then
-					return v.Value
-				end
-			end
-		end
+	-- 💰 Money / sec
+	local moneyLabel = Instance.new("TextLabel")
+	moneyLabel.Position = UDim2.fromScale(0, 0.5)
+	moneyLabel.Size = UDim2.fromScale(1, 0.5)
+	moneyLabel.BackgroundTransparency = 1
+	moneyLabel.TextScaled = true
+	moneyLabel.Font = Enum.Font.GothamBold
+	moneyLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+	moneyLabel.TextStrokeTransparency = 0
 
-		return nil
-	end
+	local moneyPerSecond =
+		brainrot:GetAttribute("MoneyPerSecond")
+		or brainrot:GetAttribute("Income")
+		or 0
 
-	-- 🔄 UPDATE LOOP
-	task.spawn(function()
-		while brainrot.Parent do
-			local rate = getMoneyPerSecond()
-			local name = brainrot.Name
-
-			if rate then
-				text.Text = string.format(
-					"%s\n+$%.2f / sec",
-					name,
-					rate
-				)
-			else
-				text.Text = name .. "\n$?/sec"
-			end
-
-			task.wait(0.5)
-		end
-	end)
+	moneyLabel.Text = string.format("$%s /s", tostring(moneyPerSecond))
+	moneyLabel.Parent = container
 end
 
-local function scanForBrainrots()
+
+local function removeBrainrotLabels()
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") and obj.Name:lower():find("brainrot") then
-			createBrainrotLabel(obj)
+		if obj:IsA("BillboardGui") and obj.Name == "BrainrotLabel" then
+			obj:Destroy()
 		end
 	end
 end
+
+
+local function scanBrainrots()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") or obj:IsA("BasePart") then
+			if obj:GetAttribute("MoneyPerSecond")
+				or obj:GetAttribute("Income") then
+				createBrainrotLabel(obj)
+			end
+		end
+	end
+end
+
 
 
 local function setWorldFaint(enabled)
@@ -510,6 +510,13 @@ starterActivateBtn.MouseButton1Click:Connect(function()
 	setWorldFaint(rapidFireEnabled)
 	setGuideline(rapidFireEnabled)
 
+	-- 🧠 BRAINROT VISUALS
+	if rapidFireEnabled then
+		scanBrainrots()          -- 👀 SHOW name + $/sec
+	else
+		removeBrainrotLabels()  -- ❌ HIDE everything
+	end
+
 	-- rapid fire logic
 	local tool = getEquippedTool()
 	if tool then
@@ -525,6 +532,7 @@ starterActivateBtn.MouseButton1Click:Connect(function()
 		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
 	end
 end)
+
 
 
 
