@@ -151,6 +151,8 @@ end
 
 
 local function setGuideline(enabled)
+	print("setGuideline called with:", enabled)
+
 	-- TURN OFF
 	if not enabled then
 		if guideConnection then
@@ -161,34 +163,57 @@ local function setGuideline(enabled)
 			guideLine:Destroy()
 			guideLine = nil
 		end
+		print("Guideline turned OFF")
 		return
 	end
 
 	-- TURN ON
 	local character = player.Character or player.CharacterAdded:Wait()
-	local hrp = character:WaitForChild("HumanoidRootPart")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+
+	if not hrp then
+		warn("HumanoidRootPart not found")
+		return
+	end
 
 	guideLine = Instance.new("Part")
+	guideLine.Name = "Guideline"
 	guideLine.Anchored = true
 	guideLine.CanCollide = false
 	guideLine.Material = Enum.Material.Neon
-	guideLine.Color = Color3.fromRGB(255, 80, 80)
-	guideLine.Size = Vector3.new(0.15, 0.15, 1)
+	guideLine.Color = Color3.fromRGB(255, 0, 0)
+	guideLine.Transparency = 0
+	guideLine.Size = Vector3.new(2, 2, 20) -- BIG & VISIBLE
+	guideLine.Position = hrp.Position + Vector3.new(0, 10, 0) -- FLOAT ABOVE PLAYER
 	guideLine.Parent = workspace
 
+	print("Guideline created:", guideLine)
+
 	guideConnection = RunService.RenderStepped:Connect(function()
-		print("Guideline running")
+		print("RenderStepped tick")
 
 		local folder = workspace:FindFirstChild("Brainrots")
 		if not folder then return end
+		
+		print("Brainrots folder:", folder)
 
-		local closestPart
+		local character = player.Character
+		if not character then return end
+
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+
+		local closestPart = nil
 		local closestDist = math.huge
 
 		for _, obj in ipairs(folder:GetChildren()) do
-			local targetPart =
-				obj:IsA("Model") and obj.PrimaryPart
-				or (obj:IsA("BasePart") and obj)
+			local targetPart = nil
+
+			if obj:IsA("BasePart") then
+				targetPart = obj
+			elseif obj:IsA("Model") then
+				targetPart = obj.PrimaryPart
+			end
 
 			if targetPart then
 				local dist = (hrp.Position - targetPart.Position).Magnitude
@@ -199,65 +224,28 @@ local function setGuideline(enabled)
 			end
 		end
 
-		if closestPart then
-			local midpoint = (hrp.Position + closestPart.Position) / 2
-			guideLine.Size = Vector3.new(0.15, 0.15, closestDist)
-			guideLine.CFrame = CFrame.lookAt(midpoint, closestPart.Position)
-		end
-	end)
-end
+		if not closestPart then return end
 
+		-- 🔴 POSITION THE LINE
+		local startPos = hrp.Position + Vector3.new(0, 3, 0)
+		local endPos = closestPart.Position + Vector3.new(0, 2, 0)
 
+		local direction = endPos - startPos
+		local distance = direction.Magnitude
 
+		-- direction vector
+		local dir = (endPos - startPos)
+		local distance = dir.Magnitude
+		local center = startPos + dir / 2
 
+		guideLine.Size = Vector3.new(0.5, 0.5, distance)
 
+		-- force correct orientation (THIS IS THE KEY)
+		guideLine.CFrame = CFrame.new(
+			center,
+			endPos
+		)
 
-
-
-local RunService = game:GetService("RunService")
-local guideLine
-local guideConnection
-
-local function showBrainrotPath(enabled)
-	if not enabled then
-		if guideConnection then guideConnection:Disconnect() end
-		if guideLine then guideLine:Destroy() end
-		return
-	end
-
-	local character = player.Character or player.CharacterAdded:Wait()
-	local hrp = character:WaitForChild("HumanoidRootPart")
-
-	guideLine = Instance.new("Part")
-	guideLine.Anchored = true
-	guideLine.CanCollide = false
-	guideLine.Material = Enum.Material.Neon
-	guideLine.Color = Color3.fromRGB(255, 50, 50)
-	guideLine.Parent = workspace
-
-	guideConnection = RunService.RenderStepped:Connect(function()
-		local brainrots = workspace:FindFirstChild("Brainrots")
-		if not brainrots then return end
-
-		local closest
-		local closestDist = math.huge
-
-		for _, obj in ipairs(brainrots:GetChildren()) do
-			local pos = obj:IsA("Model") and obj.PrimaryPart or obj
-			if pos then
-				local dist = (hrp.Position - pos.Position).Magnitude
-				if dist < closestDist then
-					closestDist = dist
-					closest = pos
-				end
-			end
-		end
-
-		if closest then
-			local midpoint = (hrp.Position + closest.Position) / 2
-			guideLine.Size = Vector3.new(0.15, 0.15, closestDist)
-			guideLine.CFrame = CFrame.lookAt(midpoint, closest.Position)
-		end
 	end)
 end
 
@@ -399,36 +387,30 @@ local starterActivateBtn =
 	bigButton(starter, "⚡ ACTIVATE", Color3.fromRGB(80,190,130), 0.40)
 
 starterActivateBtn.MouseButton1Click:Connect(function()
+	-- toggle state
 	rapidFireEnabled = not rapidFireEnabled
+
+	-- core systems
 	setStarterLag(rapidFireEnabled)
 	setWorldFaint(rapidFireEnabled)
-	showBrainrotPath(rapidFireEnabled)
-	setGuideline(true)
+	setGuideline(rapidFireEnabled)
 
-
-
-
+	-- rapid fire logic
 	local tool = getEquippedTool()
 	if tool then
-		if rapidFireEnabled then
-			tool:SetAttribute("FireRateMultiplier", 3) -- 3x faster
-		else
-			tool:SetAttribute("FireRateMultiplier", 1)
-		end
+		tool:SetAttribute("FireRateMultiplier", rapidFireEnabled and 3 or 1)
 	end
 
+	-- UI feedback
 	if rapidFireEnabled then
-		setGuideline(true)
-		setWorldFaint(true)
 		starterActivateBtn.Text = "⚡ ACTIVE"
 		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(60,160,110)
 	else
-		setGuideline(false)
-		setWorldFaint(false)
 		starterActivateBtn.Text = "⚡ ACTIVATE"
 		starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
 	end
 end)
+
 
 
 bigButton(starter, "🚀 START + TP HIGHEST", Color3.fromRGB(140,110,220), 0.62)
@@ -487,31 +469,21 @@ local stopAllBtn = actionButton(actions, "🛑 STOP ALL", Color3.fromRGB(200,70,
 
 
 stopAllBtn.MouseButton1Click:Connect(function()
-	-- turn off starter / main logic
-	if starterLagEnabled then
-		setStarterLag(false)
-	end
-	if mainLagEnabled then
-		setMainLag(false)
-	end
+	if starterLagEnabled then setStarterLag(false) end
+	if mainLagEnabled then setMainLag(false) end
 
 	starterLagEnabled = false
 	mainLagEnabled = false
 	rapidFireEnabled = false
+
 	setWorldFaint(false)
-	showBrainrotPath(false)
 	setGuideline(false)
 
-
-
-	-- 🔥 THIS IS THE PART YOU WERE ASKING ABOUT
 	local tool = getEquippedTool()
 	if tool then
 		tool:SetAttribute("FireRateMultiplier", 1)
 	end
-	-- 🔥 END OF ADDED PART
 
-	-- reset button visuals
 	starterActivateBtn.Text = "⚡ ACTIVATE"
 	starterActivateBtn.BackgroundColor3 = Color3.fromRGB(80,190,130)
 
@@ -520,6 +492,7 @@ stopAllBtn.MouseButton1Click:Connect(function()
 
 	print("ALL FEATURES STOPPED")
 end)
+
 
 
 
