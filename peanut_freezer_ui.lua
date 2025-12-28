@@ -149,6 +149,41 @@ local function setWorldFaint(enabled)
 	end
 end
 
+local function getNearestBrainrot()
+	local folder = workspace:FindFirstChild("Brainrots")
+	if not folder then
+		warn("Brainrots folder NOT found")
+		return nil
+	end
+
+	local character = player.Character
+	if not character then return nil end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local closestPart = nil
+	local closestDist = math.huge
+
+	for _, obj in ipairs(folder:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			local dist = (hrp.Position - obj.Position).Magnitude
+			if dist < closestDist then
+				closestDist = dist
+				closestPart = obj
+			end
+		end
+	end
+
+	if closestPart then
+		print("Nearest Brainrot found:", closestPart:GetFullName())
+	else
+		warn("NO Brainrot parts found")
+	end
+
+	return closestPart
+end
+
 
 local function setGuideline(enabled)
 	print("setGuideline called with:", enabled)
@@ -190,12 +225,9 @@ local function setGuideline(enabled)
 	print("Guideline created:", guideLine)
 
 	guideConnection = RunService.RenderStepped:Connect(function()
-		print("RenderStepped tick")
+		print("Distance:", distance)
 
-		local folder = workspace:FindFirstChild("Brainrots")
-		if not folder then return end
-		
-		print("Brainrots folder:", folder)
+		if not guideLine then return end
 
 		local character = player.Character
 		if not character then return end
@@ -203,115 +235,31 @@ local function setGuideline(enabled)
 		local hrp = character:FindFirstChild("HumanoidRootPart")
 		if not hrp then return end
 
-		local closestPart = nil
-		local closestDist = math.huge
+		local target = getNearestBrainrot()
+		if not target then return end
 
-		for _, obj in ipairs(brainrotsFolder:GetDescendants()) do
-			if obj:IsA("BasePart") then
-				local dist = (hrp.Position - obj.Position).Magnitude
-				if dist < closestDist then
-					closestDist = dist
-					closestPart = obj
-				end
-			end
-		end
-
-
-		if not closestPart then return end
-
-		-- 🔴 POSITION THE LINE
-		local startPos = hrp.Position + Vector3.new(0, 3, 0)
-		local endPos = closestPart.Position + Vector3.new(0, 2, 0)
+		-- positions
+		local startPos = hrp.Position + Vector3.new(0, 2.5, 0)
+		local endPos = target.Position + Vector3.new(0, 1.5, 0)
 
 		local direction = endPos - startPos
 		local distance = direction.Magnitude
 
-		-- direction vector
-		local dir = (endPos - startPos)
-		local distance = dir.Magnitude
-		local center = startPos + dir / 2
+		-- resize as you get closer
+		guideLine.Size = Vector3.new(0.4, 0.4, distance)
 
-		guideLine.Size = Vector3.new(0.5, 0.5, distance)
-
-		-- force correct orientation (THIS IS THE KEY)
+		-- EXACT orientation from player to brainrot
 		guideLine.CFrame = CFrame.new(
-			center,
+			startPos + direction / 2,
 			endPos
 		)
-
 	end)
 end
 
-local function getNearestBrainrot()
-	local folder = workspace:FindFirstChild("Brainrots")
-	if not folder then
-		warn("Brainrots folder NOT found")
-		return nil
-	end
-
-	local character = player.Character
-	if not character then return nil end
-
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
-
-	local closestPart = nil
-	local closestDist = math.huge
-
-	for _, obj in ipairs(folder:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			local dist = (hrp.Position - obj.Position).Magnitude
-			if dist < closestDist then
-				closestDist = dist
-				closestPart = obj
-			end
-		end
-	end
-
-	if closestPart then
-		print("Nearest Brainrot found:", closestPart:GetFullName())
-	else
-		warn("NO Brainrot parts found")
-	end
-
-	return closestPart
-end
 
 
-local function getNearestBrainrot()
-	local folder = workspace:FindFirstChild("Brainrots")
-	if not folder then
-		warn("Brainrots folder NOT found")
-		return nil
-	end
 
-	local character = player.Character
-	if not character then return nil end
 
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
-
-	local closestPart = nil
-	local closestDist = math.huge
-
-	for _, obj in ipairs(folder:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			local dist = (hrp.Position - obj.Position).Magnitude
-			if dist < closestDist then
-				closestDist = dist
-				closestPart = obj
-			end
-		end
-	end
-
-	if closestPart then
-		print("Nearest Brainrot found:", closestPart:GetFullName())
-	else
-		warn("NO Brainrot parts found")
-	end
-
-	return closestPart
-end
 
 
 
