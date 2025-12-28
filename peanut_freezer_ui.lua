@@ -2,6 +2,8 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local CollectionService = game:GetService("CollectionService")
+
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -42,6 +44,8 @@ end
 
 
 local originalTransparency = {}
+
+local CollectionService = game:GetService("CollectionService")
 
 
 -- Get currently equipped tool
@@ -228,7 +232,7 @@ local function getNearestBrainrot()
 	local closestPart = nil
 	local closestDist = math.huge
 
-	for _, obj in ipairs(CollectionService:GetTaggedy's("Brainrot")) do
+	for _, obj in ipairs(CollectionService:GetTagged("Brainrot")) do
 		local part =
 			obj:IsA("BasePart") and obj
 			or (obj:IsA("Model") and obj.PrimaryPart)
@@ -240,10 +244,11 @@ local function getNearestBrainrot()
 				closestPart = part
 			end
 		end
+	end
+
+	return closestPart, closestDist
 end
 
-return closestPart, closestDist
-end
 
 
 
@@ -631,7 +636,7 @@ if player.Character then
 	showPlayerId()
 end
 
-scanForBrainrots()
+scanBrainrots()
 
 workspace.DescendantAdded:Connect(function(obj)
 	if obj:IsA("Model") and obj.Name:lower():find("brainrot") then
