@@ -6,6 +6,41 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+local function showPlayerId()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+
+	-- prevent duplicates
+	if hrp:FindFirstChild("PlayerIdGui") then
+		hrp.PlayerIdGui:Destroy()
+	end
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "PlayerIdGui"
+	gui.Size = UDim2.fromScale(5, 1.5)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
+	gui.AlwaysOnTop = true
+	gui.Adornee = hrp
+	gui.Parent = hrp
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.TextColor3 = Color3.fromRGB(0, 255, 150)
+	text.TextStrokeTransparency = 0.4
+	text.Text =
+		"YOU\n" ..
+		"Username: " .. player.Name .. "\n" ..
+		"UserId: " .. player.UserId
+
+	text.Parent = gui
+
+	print("✅ Player ID Billboard created")
+end
+
+
 local originalTransparency = {}
 
 
@@ -71,42 +106,7 @@ local function isGroundFloor(part)
 		and part.Size.Z > 10
 end
 
-local function createObjectLabel(part)
-	if objectLabels[part] then return end
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromScale(4, 1)
-	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Adornee = part
-	billboard.Parent = part
-
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.TextScaled = true
-	text.Font = Enum.Font.GothamBold
-	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-	-- 🔧 Choose ONE of these:
-
-	-- OPTION A: Object name (recommended)
-	text.Text = part.Name
-
-	-- OPTION B: Object name + debug id
-	-- text.Text = part.Name .. "\n" .. part:GetDebugId()
-
-	text.Parent = billboard
-
-	objectLabels[part] = billboard
-end
-
-local function clearObjectLabels()
-	for part, gui in pairs(objectLabels) do
-		if gui then gui:Destroy() end
-	end
-	objectLabels = {}
-end
 
 local function setWorldFaint(enabled)
 
@@ -130,8 +130,7 @@ local function setWorldFaint(enabled)
 					0.7
 				)
 
-				-- ✅ ADD THIS LINE (SHOW LABEL)
-				createObjectLabel(obj)
+
 
 			else
 				if originalTransparency[obj] ~= nil then
@@ -144,8 +143,6 @@ local function setWorldFaint(enabled)
 	if not enabled then
 		originalTransparency = {}
 
-		-- ✅ ADD THIS LINE (REMOVE LABELS)
-		clearObjectLabels()
 	end
 end
 
@@ -255,6 +252,40 @@ local function setGuideline(enabled)
 		)
 	end)
 end
+
+local CollectionService = game:GetService("CollectionService")
+
+local function getAllBrainrots()
+	return CollectionService:GetTagged("Brainrot")
+end
+
+local function getNearestBrainrot()
+	local character = player.Character
+	if not character then return nil end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local closest
+	local closestDist = math.huge
+
+	for _, obj in ipairs(getAllBrainrots()) do
+		local part =
+			obj:IsA("BasePart") and obj
+			or obj:IsA("Model") and obj.PrimaryPart
+
+		if part then
+			local dist = (hrp.Position - part.Position).Magnitude
+			if dist < closestDist then
+				closestDist = dist
+				closest = part
+			end
+		end
+	end
+
+	return closest, closestDist
+end
+
 
 
 
@@ -556,4 +587,16 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 		main.Visible = not main.Visible
 	end
 end)
+
+-- show player id on spawn AND respawn
+player.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	showPlayerId()
+end)
+
+-- show immediately if already spawned
+if player.Character then
+	task.wait(0.5)
+	showPlayerId()
+end
 
