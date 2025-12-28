@@ -106,6 +106,78 @@ local function isGroundFloor(part)
 		and part.Size.Z > 10
 end
 
+local function createBrainrotLabel(brainrot)
+	if not brainrot:IsA("Model") then return end
+	if not brainrot.PrimaryPart then return end
+
+	-- Avoid duplicates
+	if brainrot:FindFirstChild("BrainrotLabel") then
+		return
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "BrainrotLabel"
+	billboard.Size = UDim2.fromScale(4, 2)
+	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = brainrot
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.TextStrokeTransparency = 0
+	text.TextColor3 = Color3.fromRGB(0, 255, 140)
+	text.Parent = billboard
+
+	-- 🔍 FIND MONEY PER SECOND
+	local function getMoneyPerSecond()
+		-- Attribute
+		local attr = brainrot:GetAttribute("MoneyPerSecond")
+		if attr then return attr end
+
+		-- NumberValue search
+		for _, v in ipairs(brainrot:GetDescendants()) do
+			if v:IsA("NumberValue") then
+				local n = v.Name:lower()
+				if n:find("money") or n:find("income") or n:find("rate") then
+					return v.Value
+				end
+			end
+		end
+
+		return nil
+	end
+
+	-- 🔄 UPDATE LOOP
+	task.spawn(function()
+		while brainrot.Parent do
+			local rate = getMoneyPerSecond()
+			local name = brainrot.Name
+
+			if rate then
+				text.Text = string.format(
+					"%s\n+$%.2f / sec",
+					name,
+					rate
+				)
+			else
+				text.Text = name .. "\n$?/sec"
+			end
+
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function scanForBrainrots()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj.Name:lower():find("brainrot") then
+			createBrainrotLabel(obj)
+		end
+	end
+end
 
 
 local function setWorldFaint(enabled)
@@ -588,6 +660,7 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 	end
 end)
 
+
 -- show player id on spawn AND respawn
 player.CharacterAdded:Connect(function()
 	task.wait(0.5)
@@ -599,4 +672,13 @@ if player.Character then
 	task.wait(0.5)
 	showPlayerId()
 end
+
+scanForBrainrots()
+
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("Model") and obj.Name:lower():find("brainrot") then
+		task.wait(0.2)
+		createBrainrotLabel(obj)
+	end
+end)
 
