@@ -219,45 +219,35 @@ local function setWorldFaint(enabled)
 end
 
 local function getNearestBrainrot()
-	local folder = workspace:FindFirstChild("Brainrots")
-	if not folder then
-		warn("Brainrots folder NOT found")
-		return nil
-	end
-
 	local character = player.Character
-	if not character then return nil end
+	if not character then return nil, nil end
 
 	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
+	if not hrp then return nil, nil end
 
 	local closestPart = nil
 	local closestDist = math.huge
 
-	for _, obj in ipairs(folder:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			local dist = (hrp.Position - obj.Position).Magnitude
+	for _, obj in ipairs(CollectionService:GetTaggedy's("Brainrot")) do
+		local part =
+			obj:IsA("BasePart") and obj
+			or (obj:IsA("Model") and obj.PrimaryPart)
+
+		if part then
+			local dist = (hrp.Position - part.Position).Magnitude
 			if dist < closestDist then
 				closestDist = dist
-				closestPart = obj
+				closestPart = part
 			end
 		end
-	end
+end
 
-	if closestPart then
-		print("Nearest Brainrot found:", closestPart:GetFullName())
-	else
-		warn("NO Brainrot parts found")
-	end
-
-	return closestPart
+return closestPart, closestDist
 end
 
 
-local function setGuideline(enabled)
-	print("setGuideline called with:", enabled)
 
-	-- TURN OFF
+local function setGuideline(enabled)
 	if not enabled then
 		if guideConnection then
 			guideConnection:Disconnect()
@@ -267,95 +257,55 @@ local function setGuideline(enabled)
 			guideLine:Destroy()
 			guideLine = nil
 		end
-		print("Guideline turned OFF")
 		return
 	end
 
-	-- TURN ON
 	local character = player.Character or player.CharacterAdded:Wait()
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-
-	if not hrp then
-		warn("HumanoidRootPart not found")
-		return
-	end
+	local hrp = character:WaitForChild("HumanoidRootPart")
 
 	guideLine = Instance.new("Part")
 	guideLine.Name = "Guideline"
 	guideLine.Anchored = true
 	guideLine.CanCollide = false
 	guideLine.Material = Enum.Material.Neon
-	guideLine.Color = Color3.fromRGB(255, 0, 0)
-	guideLine.Transparency = 0
-	guideLine.Size = Vector3.new(2, 2, 20) -- BIG & VISIBLE
-	guideLine.Position = hrp.Position + Vector3.new(0, 10, 0) -- FLOAT ABOVE PLAYER
+	guideLine.Color = Color3.fromRGB(255, 60, 60)
+	guideLine.Transparency = 0.15
 	guideLine.Parent = workspace
 
-	print("Guideline created:", guideLine)
-
 	guideConnection = RunService.RenderStepped:Connect(function()
-		print("Distance:", distance)
+		if not hrp.Parent then return end
 
-		if not guideLine then return end
+		local target, distance = getNearestBrainrot()
+		if not target then
+			guideLine.Transparency = 1
+			return
+		end
 
-		local character = player.Character
-		if not character then return end
-
-		local hrp = character:FindFirstChild("HumanoidRootPart")
-		if not hrp then return end
-
-		local target = getNearestBrainrot()
-		if not target then return end
-
-		-- positions
 		local startPos = hrp.Position + Vector3.new(0, 2.5, 0)
 		local endPos = target.Position + Vector3.new(0, 1.5, 0)
 
 		local direction = endPos - startPos
-		local distance = direction.Magnitude
+		local length = direction.Magnitude
 
-		-- resize as you get closer
-		guideLine.Size = Vector3.new(0.4, 0.4, distance)
+		-- shrink as you get closer
+		guideLine.Size = Vector3.new(0.35, 0.35, length)
 
-		-- EXACT orientation from player to brainrot
-		guideLine.CFrame = CFrame.new(
+		-- perfectly centered + oriented
+		guideLine.CFrame = CFrame.lookAt(
 			startPos + direction / 2,
 			endPos
 		)
+
+		-- fade when close
+		guideLine.Transparency = math.clamp(length / 120, 0.05, 0.6)
 	end)
 end
+
 
 local CollectionService = game:GetService("CollectionService")
 
 local function getAllBrainrots()
 	return CollectionService:GetTagged("Brainrot")
-end
-
-local function getNearestBrainrot()
-	local character = player.Character
-	if not character then return nil end
-
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
-
-	local closest
-	local closestDist = math.huge
-
-	for _, obj in ipairs(getAllBrainrots()) do
-		local part =
-			obj:IsA("BasePart") and obj
-			or obj:IsA("Model") and obj.PrimaryPart
-
-		if part then
-			local dist = (hrp.Position - part.Position).Magnitude
-			if dist < closestDist then
-				closestDist = dist
-				closest = part
-			end
-		end
-	end
-
-	return closest, closestDist
 end
 
 
