@@ -1,10 +1,11 @@
--- Peanut Lagger UI (AUTO-STEAL legit + STOP ALL reset)
+-- Peanut Lagger UI (AUTO-STEAL legit + STOP ALL reset + REAL FPS & Ping)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
@@ -25,10 +26,10 @@ gui.ResetOnSpawn = false
 gui.Enabled = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Main Frame (bottom-right, draggable)
+-- Main Frame
 local main = Instance.new("Frame")
-main.Size = UDim2.fromScale(0.22, 0.28)
-main.Position = UDim2.fromScale(0.76, 0.64)
+main.Size = UDim2.fromScale(0.22, 0.32)
+main.Position = UDim2.fromScale(0.76, 0.62)
 main.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
 main.BorderSizePixel = 0
 main.Active = true
@@ -41,7 +42,7 @@ corner.Parent = main
 
 -- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.fromScale(1, 0.2)
+title.Size = UDim2.fromScale(1, 0.16)
 title.BackgroundTransparency = 1
 title.Text = "PEANUT LAGGER"
 title.Font = Enum.Font.GothamBold
@@ -49,10 +50,21 @@ title.TextSize = 20
 title.TextColor3 = Color3.fromRGB(220, 60, 60)
 title.Parent = main
 
+-- FPS / Ping label
+local statsLabel = Instance.new("TextLabel")
+statsLabel.Size = UDim2.fromScale(1, 0.12)
+statsLabel.Position = UDim2.fromScale(0, 0.16)
+statsLabel.BackgroundTransparency = 1
+statsLabel.Text = "FPS: -- | Ping: -- ms"
+statsLabel.Font = Enum.Font.Gotham
+statsLabel.TextSize = 14
+statsLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
+statsLabel.Parent = main
+
 -- Button factory
 local function createButton(text, yPos)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.fromScale(0.9, 0.18)
+	btn.Size = UDim2.fromScale(0.9, 0.16)
 	btn.Position = UDim2.fromScale(0.05, yPos)
 	btn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
 	btn.Text = text
@@ -70,9 +82,9 @@ local function createButton(text, yPos)
 end
 
 -- Buttons
-local executeBtn   = createButton("EXECUTE", 0.22)
-local autoStealBtn = createButton("AUTO-STEAL: OFF", 0.45)
-local stopAllBtn   = createButton("STOP ALL", 0.68)
+local executeBtn   = createButton("EXECUTE", 0.30)
+local autoStealBtn = createButton("AUTO-STEAL: OFF", 0.50)
+local stopAllBtn   = createButton("STOP ALL", 0.70)
 
 -- Tween helper
 local function tween(btn, color)
@@ -83,13 +95,12 @@ local function tween(btn, color)
 	):Play()
 end
 
--- EXECUTE (placeholder)
+-- EXECUTE
 executeBtn.MouseButton1Click:Connect(function()
 	tween(executeBtn, Color3.fromRGB(255, 90, 90))
 	task.delay(0.15, function()
 		tween(executeBtn, Color3.fromRGB(220, 50, 50))
 	end)
-	print("Peanut Lagger: Execute")
 end)
 
 -- AUTO-STEAL toggle
@@ -104,7 +115,7 @@ autoStealBtn.MouseButton1Click:Connect(function()
 	)
 end)
 
--- AUTO-STEAL proximity check (LEGIT)
+-- AUTO-STEAL logic
 RunService.Heartbeat:Connect(function()
 	if not autoSteal then return end
 
@@ -120,19 +131,16 @@ RunService.Heartbeat:Connect(function()
 			or brainrot:IsA("BasePart") and brainrot
 
 		if part then
-			local distance = (root.Position - part.Position).Magnitude
-			if distance <= STEAL_DISTANCE then
-				-- Request steal (server validates)
+			if (root.Position - part.Position).Magnitude <= STEAL_DISTANCE then
 				StealBrainrotEvent:FireServer(brainrot)
 			end
 		end
 	end
 end)
 
--- STOP ALL (reset cleanly)
+-- STOP ALL
 stopAllBtn.MouseButton1Click:Connect(function()
 	autoSteal = false
-
 	autoStealBtn.Text = "AUTO-STEAL: OFF"
 	tween(autoStealBtn, Color3.fromRGB(220, 50, 50))
 
@@ -140,11 +148,32 @@ stopAllBtn.MouseButton1Click:Connect(function()
 	task.delay(0.15, function()
 		tween(stopAllBtn, Color3.fromRGB(220, 50, 50))
 	end)
-
-	print("Peanut Lagger: STOP ALL")
 end)
 
--- Right Ctrl toggles UI
+-- 🔥 REAL FPS + REAL PING
+do
+	local fpsAverage = 0
+	local alpha = 0.1 -- smoothing
+
+	RunService.RenderStepped:Connect(function(dt)
+		local fps = math.floor(1 / dt)
+		fpsAverage = fpsAverage + (fps - fpsAverage) * alpha
+
+		local pingMs = 0
+		local pingItem = Stats.Network.ServerStatsItem:FindFirstChild("Data Ping")
+		if pingItem then
+			pingMs = math.floor(pingItem:GetValue() / 1000) -- μs → ms
+		end
+
+		statsLabel.Text = string.format(
+			"FPS: %d | Ping: %d ms",
+			math.floor(fpsAverage),
+			pingMs
+		)
+	end)
+end
+
+-- Right Ctrl toggle
 UIS.InputBegan:Connect(function(input, gp)
 	if gp then return end
 	if input.KeyCode == Enum.KeyCode.RightControl then
